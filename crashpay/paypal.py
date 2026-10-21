@@ -63,12 +63,12 @@ def create_setup_token():
     )
     return r.status_code, r.json()
 
-def pay_with_card(number="4012888888881881", amount="10.00"):
+def pay_with_card(number="4012888888881881", amount="10.00", request_id=None):
     r = requests.post(
         f"{BASE}/v2/checkout/orders",
         headers={
-            "Authorization": f"Bearer {get_token()}",
-            "PayPal-Request-Id": str(uuid.uuid4()),
+            "Authorization": f"Bearer {get_token()}",        
+            "PayPal-Request-Id": request_id or str(uuid.uuid4()),
         },
         json={
             "intent": "CAPTURE",
