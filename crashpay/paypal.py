@@ -92,3 +92,12 @@ def pay_with_card(number="4012888888881881", amount="10.00", request_id=None):
         timeout=15,
     )
     return r.status_code, r.json()
+
+def get_order(order_id):
+    r = requests.get(
+        f"{BASE}/v2/checkout/orders/{order_id}",
+        headers={"Authorization": f"Bearer {get_token()}"},
+        timeout=15,
+    )
+    r.raise_for_status()
+    return r.json()
