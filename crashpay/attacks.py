@@ -1,4 +1,17 @@
+import uuid
+
+import requests
+
 from crashpay.paypal import get_order
+
+
+def buy(url, item, price, cart_id):
+    r = requests.post(
+        f"{url}/pay",
+        json={"item": item, "price": price, "cart_id": cart_id},
+        timeout=40,
+    )
+    return r.json()["id"]
 
 
 def was_charged(order):
@@ -6,16 +19,20 @@ def was_charged(order):
     return any(c["status"] == "COMPLETED" for c in captures)
 
 
-def count_charges(order_ids):
-    unique = set(order_ids)
-    return sum(1 for i in unique if was_charged(get_order(i)))
+def retry_after_timeout(url):
+    cart = str(uuid.uuid4())
+    ids = {buy(url, "hub", "10.00", cart) for _ in range(2)}
+    charges = sum(1 for i in ids if was_charged(get_order(i)))
+    return {"detail": f"{charges} charge(s)", "defended": charges == 1}
 
 
-def retry_after_timeout(pay):
-    first = pay()
-    second = pay()
-    charges = count_charges([first["id"], second["id"]])
-    return {"charges": charges, "defended": charges == 1}
+def price_tampering(url):
+    order = get_order(buy(url, "monitor", "0.01", str(uuid.uuid4())))
+    paid = order["purchase_units"][0]["amount"]["value"]
+    return {"detail": f"monitor sold for {paid}", "defended": paid == "300.00"}
 
 
-ATTACKS = {"retry after a timeout": retry_after_timeout}
+ATTACKS = {
+    "retry after a timeout": retry_after_timeout,
+    "price tampering": price_tampering,
+}

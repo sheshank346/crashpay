@@ -4,14 +4,14 @@ from crashpay.targets import TARGETS
 
 def run():
     rows = []
-    for target_name, make_pay in TARGETS.items():
-        for attack_name, attack in ATTACKS.items():
-            result = attack(make_pay())
-            rows.append((target_name, attack_name, result["charges"], result["defended"]))
+    for target, url in TARGETS.items():
+        for attack, fn in ATTACKS.items():
+            result = fn(url)
+            rows.append((target, attack, result["detail"], result["defended"]))
     return rows
 
 
 if __name__ == "__main__":
-    for target, attack, charges, defended in run():
+    for target, attack, detail, defended in run():
         status = "PASS" if defended else "FAIL"
-        print(f"{status}  {target:<18} {attack:<24} charges={charges}")
+        print(f"{status}  {target:<16} {attack:<24} {detail}")
