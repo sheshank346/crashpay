@@ -63,7 +63,7 @@ def create_setup_token():
     )
     return r.status_code, r.json()
 
-def pay_with_card(number="4012888888881881", amount="10.00", request_id=None):
+def pay_with_card(number="4012888888881881", amount="10.00", request_id=None, name="Test Buyer"):
     r = requests.post(
         f"{BASE}/v2/checkout/orders",
         headers={
@@ -78,7 +78,7 @@ def pay_with_card(number="4012888888881881", amount="10.00", request_id=None):
                     "number": number,
                     "expiry": "2030-12",
                     "security_code": "123",
-                    "name": "Test Buyer",
+                    "name": name,
                     "billing_address": {
                         "address_line_1": "2211 N First St",
                         "admin_area_2": "San Jose",
