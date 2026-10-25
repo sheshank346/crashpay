@@ -6,12 +6,11 @@ def count_charges(order_ids):
     return sum(1 for i in unique if get_order(i)["status"] == "COMPLETED")
 
 
-def retry_without_key(pay):
+def retry_after_timeout(pay):
     first = pay()
     second = pay()
     charges = count_charges([first["id"], second["id"]])
-    return {
-        "name": "retry without idempotency key",
-        "charges": charges,
-        "defended": charges == 1,
-    }
+    return {"charges": charges, "defended": charges == 1}
+
+
+ATTACKS = {"retry after a timeout": retry_after_timeout}

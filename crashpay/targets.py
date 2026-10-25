@@ -10,3 +10,9 @@ def naive_pay():
 def make_safe_pay():
     key = str(uuid.uuid4())
     return lambda: pay_with_card(request_id=key)[1]
+
+
+TARGETS = {
+    "naive payment": lambda: naive_pay,
+    "same-key payment": make_safe_pay,
+}
