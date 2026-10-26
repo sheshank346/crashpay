@@ -11,7 +11,7 @@ def buy(url, item, price, cart_id):
         json={"item": item, "price": price, "cart_id": cart_id},
         timeout=40,
     )
-    return r.json()["id"]
+    return r.json().get("id")
 
 
 def was_charged(order):
@@ -21,13 +21,17 @@ def was_charged(order):
 
 def retry_after_timeout(url):
     cart = str(uuid.uuid4())
-    ids = {buy(url, "hub", "10.00", cart) for _ in range(2)}
+    results = [buy(url, "hub", "10.00", cart) for _ in range(2)]
+    ids = {i for i in results if i}
     charges = sum(1 for i in ids if was_charged(get_order(i)))
     return {"detail": f"{charges} charge(s)", "defended": charges == 1}
 
 
 def price_tampering(url):
-    order = get_order(buy(url, "monitor", "0.01", str(uuid.uuid4())))
+    order_id = buy(url, "monitor", "0.01", str(uuid.uuid4()))
+    if not order_id:
+        return {"detail": "request refused", "defended": True}
+    order = get_order(order_id)
     paid = order["purchase_units"][0]["amount"]["value"]
     return {"detail": f"monitor sold for {paid}", "defended": paid == "300.00"}
 
