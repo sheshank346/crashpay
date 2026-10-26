@@ -48,8 +48,27 @@ def price_tampering(url):
     return {"detail": f"monitor sold for {paid}", "defended": paid == "300.00"}
 
 
+def malformed_input(url):
+    bodies = [
+        {},
+        {"item": "hub"},
+        {"cart_id": str(uuid.uuid4())},
+        {"item": "nope", "cart_id": str(uuid.uuid4())},
+    ]
+    codes = [requests.post(f"{url}/pay", json=b, timeout=40).status_code for b in bodies]
+    broken = requests.post(
+        f"{url}/pay",
+        data="{not json",
+        headers={"Content-Type": "application/json"},
+        timeout=40,
+    )
+    codes.append(broken.status_code)
+    return {"detail": f"status codes {codes}", "defended": all(400 <= c < 500 for c in codes)}
+
+
 ATTACKS = {
     "retry after a timeout": retry_after_timeout,
     "double submit": double_submit,
     "price tampering": price_tampering,
+    "malformed input": malformed_input,
 }
