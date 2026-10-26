@@ -1,4 +1,5 @@
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -19,11 +20,22 @@ def was_charged(order):
     return any(c["status"] == "COMPLETED" for c in captures)
 
 
+def count_charges(order_ids):
+    ids = {i for i in order_ids if i}
+    return sum(1 for i in ids if was_charged(get_order(i)))
+
+
 def retry_after_timeout(url):
     cart = str(uuid.uuid4())
-    results = [buy(url, "hub", "10.00", cart) for _ in range(2)]
-    ids = {i for i in results if i}
-    charges = sum(1 for i in ids if was_charged(get_order(i)))
+    charges = count_charges([buy(url, "hub", "10.00", cart) for _ in range(2)])
+    return {"detail": f"{charges} charge(s)", "defended": charges == 1}
+
+
+def double_submit(url):
+    cart = str(uuid.uuid4())
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: buy(url, "hub", "10.00", cart), range(2)))
+    charges = count_charges(results)
     return {"detail": f"{charges} charge(s)", "defended": charges == 1}
 
 
@@ -38,5 +50,6 @@ def price_tampering(url):
 
 ATTACKS = {
     "retry after a timeout": retry_after_timeout,
+    "double submit": double_submit,
     "price tampering": price_tampering,
 }
