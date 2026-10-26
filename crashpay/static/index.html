@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Crashpay</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #ddd; }
+  .pass { color: #0a7d32; font-weight: 600; }
+  .fail { color: #c62828; font-weight: 600; }
+  .wait { color: #888; }
+  button { padding: 8px 16px; font-size: 1rem; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Crashpay</h1>
+<p>Sandbox-only attacks against demo shops. Every result is read from PayPal's order records.</p>
+<button id="run">Run all attacks</button>
+<p id="timer"></p>
+<table>
+  <thead><tr><th>Target</th><th>Attack</th><th>Result</th><th>Detail</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+const rows = document.getElementById("rows");
+const button = document.getElementById("run");
+const timer = document.getElementById("timer");
+
+async function attack(c) {
+  c.result.textContent = "running...";
+  try {
+    const r = await fetch("/api/attack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: c.target, attack: c.attack }),
+    });
+    if (!r.ok) throw new Error("bad response");
+    const data = await r.json();
+    c.result.textContent = data.defended ? "PASS" : "FAIL";
+    c.result.className = data.defended ? "pass" : "fail";
+    c.detail.textContent = data.detail;
+  } catch (e) {
+    c.result.textContent = "ERROR";
+    c.detail.textContent = "is the shop running?";
+  }
+}
+
+async function run() {
+  button.disabled = true;
+  const start = Date.now();
+  const plan = await (await fetch("/api/plan")).json();
+  rows.innerHTML = "";
+  const cells = [];
+  for (const target of plan.targets) {
+    for (const attack of plan.attacks) {
+      const tr = rows.insertRow();
+      tr.insertCell().textContent = target;
+      tr.insertCell().textContent = attack;
+      const result = tr.insertCell();
+      result.textContent = "waiting";
+      result.className = "wait";
+      cells.push({ target, attack, result, detail: tr.insertCell() });
+    }
+  }
+  await Promise.all(cells.map(attack));
+  timer.textContent = "Finished in " + Math.round((Date.now() - start) / 1000) + " seconds";
+  button.disabled = false;
+}
+button.onclick = run;
+</script>
+</body>
+</html>
