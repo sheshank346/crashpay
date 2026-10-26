@@ -9,37 +9,47 @@
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #ddd; }
   .pass { color: #0a7d32; font-weight: 600; }
   .fail { color: #c62828; font-weight: 600; }
+  .mixed { color: #b26a00; font-weight: 600; }
   .wait { color: #888; }
-  button { padding: 8px 16px; font-size: 1rem; cursor: pointer; }
+  button, select { padding: 8px 16px; font-size: 1rem; }
+  button { cursor: pointer; }
 </style>
 </head>
 <body>
 <h1>Crashpay</h1>
 <p>Sandbox-only attacks against demo shops. Every result is read from PayPal's order records.</p>
+<label>Runs per attack
+  <select id="runs">
+    <option value="1">1</option>
+    <option value="5">5</option>
+    <option value="10">10</option>
+  </select>
+</label>
 <button id="run">Run all attacks</button>
 <p id="timer"></p>
 <table>
-  <thead><tr><th>Target</th><th>Attack</th><th>Result</th><th>Detail</th></tr></thead>
+  <thead><tr><th>Target</th><th>Attack</th><th>Passed</th><th>Detail</th></tr></thead>
   <tbody id="rows"></tbody>
 </table>
 <script>
 const rows = document.getElementById("rows");
 const button = document.getElementById("run");
 const timer = document.getElementById("timer");
+const runsBox = document.getElementById("runs");
 
-async function attack(c) {
+async function attack(c, runs) {
   c.result.textContent = "running...";
   try {
     const r = await fetch("/api/attack", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target: c.target, attack: c.attack }),
+      body: JSON.stringify({ target: c.target, attack: c.attack, runs }),
     });
     if (!r.ok) throw new Error("bad response");
-    const data = await r.json();
-    c.result.textContent = data.defended ? "PASS" : "FAIL";
-    c.result.className = data.defended ? "pass" : "fail";
-    c.detail.textContent = data.detail;
+    const d = await r.json();
+    c.result.textContent = d.passed + "/" + d.runs;
+    c.result.className = d.passed === d.runs ? "pass" : d.passed === 0 ? "fail" : "mixed";
+    c.detail.textContent = d.detail;
   } catch (e) {
     c.result.textContent = "ERROR";
     c.detail.textContent = "is the shop running?";
@@ -48,6 +58,7 @@ async function attack(c) {
 
 async function run() {
   button.disabled = true;
+  const runs = Number(runsBox.value);
   const start = Date.now();
   const plan = await (await fetch("/api/plan")).json();
   rows.innerHTML = "";
@@ -63,7 +74,7 @@ async function run() {
       cells.push({ target, attack, result, detail: tr.insertCell() });
     }
   }
-  await Promise.all(cells.map(attack));
+  await Promise.all(cells.map((c) => attack(c, runs)));
   timer.textContent = "Finished in " + Math.round((Date.now() - start) / 1000) + " seconds";
   button.disabled = false;
 }

@@ -19,8 +19,14 @@ def plan():
 @app.post("/api/attack")
 def attack():
     data = request.get_json()
-    result = ATTACKS[data["attack"]](TARGETS[data["target"]])
-    return jsonify(result)
+    runs = max(1, min(int(data.get("runs", 1)), 10))
+    fn, url = ATTACKS[data["attack"]], TARGETS[data["target"]]
+    results = [fn(url) for _ in range(runs)]
+    return jsonify(
+        passed=sum(1 for r in results if r["defended"]),
+        runs=runs,
+        detail=results[-1]["detail"],
+    )
 
 
 if __name__ == "__main__":
