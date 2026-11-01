@@ -50,3 +50,33 @@ The targets are three demo shops written for this project:
 
 Every result comes from PayPal. After each attack, Crashpay fetches the orders from GET /v2/checkout/orders/{id} and counts the captures with status COMPLETED.
 
+
+## Results
+
+Every number here comes from runs I did myself against the PayPal sandbox. Each cell is attacks defended out of runs, so 5/5 means the shop held up all five times and 0/5 means it failed every time.
+
+First 5-run test, before I repaired the hand-fixed shop:
+
+| Shop | Retry after a timeout | Double submit | Price tampering | Malformed input |
+|---|---|---|---|---|
+| Vulnerable | 0/5 | 0/5 | 0/5 | 0/5 |
+| Hand-fixed (first version) | 5/5 | 4/5 | 5/5 | 0/5 |
+| LLM-patched | 5/5 | 5/5 | 5/5 | 5/5 |
+
+I ran double submit ten times on its own against two of the shops: the first version of the hand-fixed shop defended 7 of 10, and the LLM-patched shop defended 10 of 10.
+
+After I repaired the hand-fixed shop, one more 5-run test gave 5/5 on all four attacks for both the hand-fixed and the LLM-patched shop. In that same run the vulnerable shop's retry row showed an error. The three other vulnerable rows worked, and I did not find the cause.
+
+These are small samples from the sandbox. A different number of runs, or production timing, could give different results.
+
+## What Crashpay found
+
+Crashpay found two bugs in the shop I had written myself and thought was fixed.
+
+1. It relied only on the PayPal-Request-Id header to stop duplicates. When two identical requests arrived at the same moment, a second charge sometimes went through.
+2. It crashed with HTTP 500 on a request that had an item but no cart id, because it never checked that the field existed.
+
+I repaired it by validating the input, giving each cart its own lock, and returning the first reply when the same cart is submitted again. It still sends the cart id to PayPal as the request id, as a second layer.
+
+The LLM-patched shop took a different approach. It keeps a set of cart ids in memory and refuses a repeat with a 409 response. It does not send a request id to PayPal. That worked in my tests, but the memory is lost when the server restarts, and it would not work across several server processes. It also gives a repeated request an error and not the original order.
+
