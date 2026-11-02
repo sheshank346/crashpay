@@ -12,7 +12,10 @@ def buy(url, item, price, cart_id):
         json={"item": item, "price": price, "cart_id": cart_id},
         timeout=40,
     )
-    return r.json().get("id")
+    try:
+        return r.json().get("id")
+    except ValueError:
+        return None
 
 
 def was_charged(order):
@@ -31,12 +34,20 @@ def retry_after_timeout(url):
     return {"detail": f"{charges} charge(s)", "defended": charges == 1}
 
 
-def double_submit(url):
+def simultaneous(url, n):
     cart = str(uuid.uuid4())
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(lambda _: buy(url, "hub", "10.00", cart), range(2)))
+    with ThreadPoolExecutor(max_workers=n) as pool:
+        results = list(pool.map(lambda _: buy(url, "hub", "10.00", cart), range(n)))
     charges = count_charges(results)
-    return {"detail": f"{charges} charge(s)", "defended": charges == 1}
+    return {"detail": f"{charges} charge(s) from {n} requests", "defended": charges == 1}
+
+
+def double_submit(url):
+    return simultaneous(url, 2)
+
+
+def burst_submit(url):
+    return simultaneous(url, 8)
 
 
 def price_tampering(url):
@@ -48,6 +59,11 @@ def price_tampering(url):
     return {"detail": f"monitor sold for {paid}", "defended": paid == "300.00"}
 
 
+def status_codes(url, bodies):
+    codes = [requests.post(f"{url}/pay", json=b, timeout=40).status_code for b in bodies]
+    return {"detail": f"status codes {codes}", "defended": all(400 <= c < 500 for c in codes)}
+
+
 def malformed_input(url):
     bodies = [
         {},
@@ -55,20 +71,34 @@ def malformed_input(url):
         {"cart_id": str(uuid.uuid4())},
         {"item": "nope", "cart_id": str(uuid.uuid4())},
     ]
-    codes = [requests.post(f"{url}/pay", json=b, timeout=40).status_code for b in bodies]
+    result = status_codes(url, bodies)
     broken = requests.post(
         f"{url}/pay",
         data="{not json",
         headers={"Content-Type": "application/json"},
         timeout=40,
     )
-    codes.append(broken.status_code)
-    return {"detail": f"status codes {codes}", "defended": all(400 <= c < 500 for c in codes)}
+    codes = result["detail"] + f" + {broken.status_code}"
+    return {"detail": codes, "defended": result["defended"] and 400 <= broken.status_code < 500}
+
+
+def type_confusion(url):
+    cart = str(uuid.uuid4())
+    bodies = [
+        {"item": ["hub"], "cart_id": cart},
+        {"item": {"a": 1}, "cart_id": cart},
+        {"item": None, "cart_id": cart},
+        {"item": "hub", "cart_id": ["x"]},
+        [1, 2, 3],
+    ]
+    return status_codes(url, bodies)
 
 
 ATTACKS = {
     "retry after a timeout": retry_after_timeout,
     "double submit": double_submit,
+    "burst submit (8)": burst_submit,
     "price tampering": price_tampering,
     "malformed input": malformed_input,
+    "type confusion": type_confusion,
 }
