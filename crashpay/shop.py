@@ -23,7 +23,7 @@ def create_app(vulnerable):
 
     def pay_fixed():
         data = request.get_json(silent=True)
-        if not isinstance(data, dict) or data.get("item") not in PRICES:
+        if not isinstance(data, dict) or not isinstance(data.get("item"), str) or data["item"] not in PRICES:
             return jsonify(error="invalid item"), 400
         cart_id = data.get("cart_id")
         if not isinstance(cart_id, str) or not cart_id:
