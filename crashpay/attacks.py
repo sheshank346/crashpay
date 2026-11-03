@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
+from crashpay.cases import BODIES
 from crashpay.paypal import get_order
 
 
@@ -16,6 +17,13 @@ def buy(url, item, price, cart_id):
         return r.json().get("id")
     except ValueError:
         return None
+
+
+def post_status(url, body):
+    try:
+        return requests.post(f"{url}/pay", json=body, timeout=40).status_code
+    except requests.RequestException:
+        return 0
 
 
 def was_charged(order):
@@ -60,7 +68,7 @@ def price_tampering(url):
 
 
 def status_codes(url, bodies):
-    codes = [requests.post(f"{url}/pay", json=b, timeout=40).status_code for b in bodies]
+    codes = [post_status(url, b) for b in bodies]
     return {"detail": f"status codes {codes}", "defended": all(400 <= c < 500 for c in codes)}
 
 
@@ -94,6 +102,15 @@ def type_confusion(url):
     return status_codes(url, bodies)
 
 
+def fuzz_input(url):
+    codes = [post_status(url, b) for b in BODIES]
+    refused = sum(1 for c in codes if 400 <= c < 500)
+    crashed = sum(1 for c in codes if c == 0 or c >= 500)
+    accepted = len(codes) - refused - crashed
+    detail = f"{refused} refused, {crashed} crashed, {accepted} accepted of {len(codes)}"
+    return {"detail": detail, "defended": refused == len(codes)}
+
+
 ATTACKS = {
     "retry after a timeout": retry_after_timeout,
     "double submit": double_submit,
@@ -101,4 +118,5 @@ ATTACKS = {
     "price tampering": price_tampering,
     "malformed input": malformed_input,
     "type confusion": type_confusion,
+    "fuzz (31 bad bodies)": fuzz_input,
 }
