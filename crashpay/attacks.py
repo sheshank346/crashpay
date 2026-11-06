@@ -118,5 +118,5 @@ ATTACKS = {
     "price tampering": price_tampering,
     "malformed input": malformed_input,
     "type confusion": type_confusion,
-    "fuzz (31 bad bodies)": fuzz_input,
+    f"fuzz ({len(BODIES)} bad bodies)": fuzz_input,
 }

@@ -39,4 +39,9 @@ BODIES = [
     # extra fields
     {"item": "nope", "cart_id": CART, "price": "-5"},
     {"item": "nope", "cart_id": CART, "extra": {"deep": [[[[1]]]]}},
+    # cart ids that are not usable strings
+    {"item": "hub", "cart_id": True},
+    {"item": "hub", "cart_id": 0},
+    {"item": "hub", "cart_id": 1.5},
+    {"item": "hub", "cart_id": "   "},
 ]

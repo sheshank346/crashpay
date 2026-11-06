@@ -26,7 +26,7 @@ def create_app(vulnerable):
         if not isinstance(data, dict) or not isinstance(data.get("item"), str) or data["item"] not in PRICES:
             return jsonify(error="invalid item"), 400
         cart_id = data.get("cart_id")
-        if not isinstance(cart_id, str) or not cart_id:
+        if not isinstance(cart_id, str) or not cart_id.strip():
             return jsonify(error="cart_id required"), 400
         with guard:
             cart = carts.setdefault(cart_id, {"lock": Lock(), "reply": None})
