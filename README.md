@@ -66,3 +66,62 @@ Command line:
     python checks.py replay "fixed shop"
 
 measure.py runs one attack against one shop the number of times you give it. The restart check is three steps: python checks.py buy "fixed shop", then restart that shop, then python checks.py again "fixed shop".
+
+
+
+
+## Results
+
+All numbers come from runs I did against the PayPal sandbox in November 2026, on shops I restarted first. Each table says what was measured. These are small samples.
+
+### One run of every attack on freshly started shops
+
+| Shop | Retry | Double submit | Burst (8) | Price tampering | Malformed | Type confusion | Fuzz |
+|---|---|---|---|---|---|---|---|
+| Vulnerable | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL |
+| Hand-fixed | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AI-patched v1 | PASS | PASS | PASS | PASS | PASS | FAIL | FAIL |
+| AI-patched v2 | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| AI-patched v3 | PASS | PASS | PASS | PASS | PASS | PASS | FAIL |
+| AI-patched v4 | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+
+What the vulnerable shop did: 2 charges for one cart on retry, 2 charges on double submit, 8 charges from 8 simultaneous requests, and a $300 monitor sold for 0.01. It crashed (HTTP 500) on 17 of the 35 fuzz bodies.
+
+### Fuzz detail (35 bad request bodies, one run each)
+
+A body counts as "got through" if the shop crashed on it or accepted it. A good shop refuses every one with a 4xx reply.
+
+| Shop | Refused | Crashed | Accepted | Got through |
+|---|---|---|---|---|
+| Vulnerable | 18 | 17 | 0 | 17 |
+| Hand-fixed | 35 | 0 | 0 | 0 |
+| AI-patched v1 | 22 | 7 | 6 | 13 |
+| AI-patched v2 | 31 | 0 | 4 | 4 |
+| AI-patched v3 | 33 | 0 | 2 | 2 |
+| AI-patched v4 | 35 | 0 | 0 | 0 |
+
+The accepted bodies were all cart id problems. From the 409 replies in a follow-up check, I read v1 as accepting an empty string, null, true, 0, 1.5 and a string of spaces, v2 as accepting the empty string, true, 0 and spaces, and v3 as accepting true and 0. I inferred this from the replies and did not read the shops' logs.
+
+The malformed input, type confusion and fuzz attacks send the same bodies every time, so repeating them tells you nothing new. Repeating helps only for the timing attacks below.
+
+### Timing attacks, repeated
+
+| Shop | Double submit | Burst (8) |
+|---|---|---|
+| Hand-fixed | 20/20 | 20/20 |
+| AI-patched v4 | 20/20 | 20/20 |
+
+20/20 means exactly one charge in every run. Earlier, the first version of the hand-fixed shop, which relied on the PayPal-Request-Id header alone, defended double submit 7 of 10 times in one test and 4 of 5 in another. I repaired it afterwards.
+
+### Replay and restart checks
+
+| Check | Hand-fixed | AI-patched v4 |
+|---|---|---|
+| A repeated request returns the original order | Yes (1 check) | No: the repeat is refused with a 409 and no order id (1 check) |
+| Charges for one cart across a restart | 1, the original order came back (2 checks) | 2, a second order was created (1 check) |
+
+The hand-fixed shop sends the cart id to PayPal as the request id, so after a restart PayPal recognised the repeat and returned the original order. v4 forgets its carts on restart and sends no request id, so nothing recognises the repeat.
+
+### Things I did not explain
+
+One early run of the vulnerable shop's retry attack showed an error row once. It did not come back in 10 later runs, which all gave 2 charges, and I did not find the cause. Other error rows on the page came from a shop window I had closed.
