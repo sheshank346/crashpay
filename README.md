@@ -122,6 +122,71 @@ The malformed input, type confusion and fuzz attacks send the same bodies every 
 
 The hand-fixed shop sends the cart id to PayPal as the request id, so after a restart PayPal recognised the repeat and returned the original order. v4 forgets its carts on restart and sends no request id, so nothing recognises the repeat.
 
-### Things I did not explain
+## What Crashpay found
+
+About PayPal's sandbox, from my own runs:
+
+- Sending the same payment twice without a PayPal-Request-Id created two separate orders and two charges. Sending the same request id twice returned the same order.
+- Capturing one order twice recorded one capture (one test).
+- A declined card still returns an order whose status is COMPLETED. The capture inside it says DECLINED. This is why Crashpay counts captures and does not trust the order status.
+
+About the shops I wrote:
+
+- My first hand-written fix relied on the request id header alone. Under simultaneous duplicate requests it let a second charge through in some runs (7 of 10 defended in one test, 4 of 5 in another). I do not know why the header was not enough in those runs. I fixed it by giving each cart its own lock and returning the first reply on a repeat.
+- It also crashed with HTTP 500 when an item was a list or a cart id was missing or only spaces. Crashpay found each of these, and I fixed them one at a time.
+
+About the AI patches:
+
+- Each patch passed the attacks that existed when it was written and failed a later attack. v1 failed type confusion and 13 fuzz bodies, v2 and v3 accepted bad cart ids (4 bodies, then 2), and v4 passed the whole suite.
+- v4 still fails a check the suite did not have: after a restart it charged a second time (1 check). It keeps carts in memory and sends no request id to PayPal.
+- So a patch is only as good as the attacks that grade it, and the useful part of this project is that adding an attack and grading the patch again takes minutes.
+
+A note on PayPal's agent toolkit: in paypal-agent-toolkit 1.11.0 for Python, I found no PayPal-Request-Id in the headers it builds, and its pay_order tool takes only an order id. I only read the code. I did not run payments through the toolkit, so I do not know whether it causes a duplicate charge.
+
+## What is simulated, and what is not
+
+Real: every order, capture and amount comes from PayPal's sandbox API, and the shops call the sandbox for every payment. No payment result is invented or mocked.
+
+Not real:
+
+- It is the sandbox. The money is fake, and production timing and rules may differ.
+- The payer is a PayPal test card sent through the Orders API. I tried PayPal's saved-wallet API, which would let an agent pay on a buyer's behalf, but the permission was refused for my app (HTTP 403).
+- The shops are mine. Crashpay tests a checkout that accepts POST /pay with item, price and cart_id. Pointing it at another checkout would need an adapter that I did not write.
+
+## Limits
+
+- Small samples. Most cells are one run. The timing attacks were repeated 20 times on two shops, and the restart and replay checks were done once or twice.
+- The malformed input, type confusion and fuzz attacks are judged by the shop's HTTP replies, not by PayPal's records. They send the same bodies every time.
+- The fuzz catalog has 35 bodies that I chose. It finds what I thought of, and it missed bad cart ids until I added them.
+- Webhooks are not tested, and neither are forged or replayed notifications.
+- I did not test several server processes, a shared database or any production setup.
+- I told the model what had failed in rounds v2 to v4, so the fixer is a way to grade patches. It did not find the failures itself.
+- Windows only, as far as I tested.
+
+## AI tools used
+
+- In the product: openai/gpt-oss-120b, called through Groq, writes the patches in fixer.py. AI plays no part in scoring an attack.
+- During development: I used Claude (Anthropic) as an assistant for writing code, debugging . I ran every command myself, read every patch before running it, and checked the results against PayPal's records and the shops' logs.
+
+## What I would do next
+
+- Test webhook replay and forged notifications.
+- Write an adapter so Crashpay can attack a checkout it did not come with.
+- Give the shops a database, add the restart check to the page, and run another patch round against it.
+- Repeat every attack many more times.
+
+## Files
+
+- crashpay/paypal.py: the sandbox API calls
+- crashpay/attacks.py and cases.py: the attacks and the fuzz bodies
+- crashpay/shop.py: the vulnerable and hand-fixed shops
+- crashpay/patched_shop.py to patched_shop_v4.py: the model's patches, unedited
+- crashpay/fixer.py and llm.py: the patch generator
+- crashpay/web.py and static/index.html: the page
+- checks.py, measure.py, start_all.bat, run_shop.py: command line tools
+
+## License
+
+MIT. This is an independent project and is not affiliated with or endorsed by PayPal.
 
 One early run of the vulnerable shop's retry attack showed an error row once. It did not come back in 10 later runs, which all gave 2 charges, and I did not find the cause. Other error rows on the page came from a shop window I had closed.
