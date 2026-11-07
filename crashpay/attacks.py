@@ -111,6 +111,34 @@ def fuzz_input(url):
     return {"detail": detail, "defended": refused == len(codes)}
 
 
+def legit_purchases(url):
+    carts = [str(uuid.uuid4()) for _ in range(6)]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        ids = list(pool.map(lambda c: buy(url, "hub", "10.00", c), carts))
+    charges = count_charges(ids)
+    return {"detail": f"{charges} of 6 legitimate purchases charged", "defended": charges == 6}
+
+
+ODD_CART_IDS = [
+    "line\nbreak",
+    "carriage\r\nreturn",
+    "tab\there",
+    " leading space",
+    "trailing space ",
+    "emoji-" + chr(0x1F4B3),
+    "rtl-" + chr(0x202E),
+    "long-" + "x" * 300,
+]
+
+
+def odd_cart_ids(url):
+    suffix = uuid.uuid4().hex[:8]
+    bodies = [{"item": "hub", "cart_id": f"{c}-{suffix}"} for c in ODD_CART_IDS]
+    codes = [post_status(url, b) for b in bodies]
+    crashed = sum(1 for c in codes if c == 0 or c >= 500)
+    return {"detail": f"status codes {codes}", "defended": crashed == 0}
+
+
 ATTACKS = {
     "retry after a timeout": retry_after_timeout,
     "double submit": double_submit,
@@ -119,4 +147,6 @@ ATTACKS = {
     "malformed input": malformed_input,
     "type confusion": type_confusion,
     f"fuzz ({len(BODIES)} bad bodies)": fuzz_input,
+    "legit purchases (control)": legit_purchases,
+    "odd cart ids (valid item)": odd_cart_ids,
 }

@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
 
-from crashpay.attacks import ATTACKS
+from crashpay.attacks import ATTACKS as BASE
+from crashpay.attacks2 import EXTRA
+
+ATTACKS = {**BASE, **EXTRA}
 from crashpay.targets import TARGETS
 
 app = Flask(__name__)
