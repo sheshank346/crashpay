@@ -133,7 +133,7 @@ ODD_CART_IDS = [
 
 def odd_cart_ids(url):
     suffix = uuid.uuid4().hex[:8]
-    bodies = [{"item": "hub", "cart_id": f"{c}-{suffix}"} for c in ODD_CART_IDS]
+    bodies = [{"item": "hub", "price": "10.00", "cart_id": f"{c}-{suffix}"} for c in ODD_CART_IDS]
     codes = [post_status(url, b) for b in bodies]
     crashed = sum(1 for c in codes if c == 0 or c >= 500)
     return {"detail": f"status codes {codes}", "defended": crashed == 0}

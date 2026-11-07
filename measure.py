@@ -1,8 +1,11 @@
 import collections
 import sys
 
-from crashpay.attacks import ATTACKS
+from crashpay.attacks import ATTACKS as BASE
+from crashpay.attacks2 import EXTRA
 from crashpay.targets import TARGETS
+
+ATTACKS = {**BASE, **EXTRA}
 
 shop, attack, runs = sys.argv[1], sys.argv[2], int(sys.argv[3])
 counts = collections.Counter()
