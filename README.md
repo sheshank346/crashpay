@@ -158,3 +158,79 @@ The hand-fixed shop sends the cart id to PayPal as the request id, so after a re
     python checks.py replay "fixed shop"
 
 measure.py runs one attack against one shop the number of times you give it. The restart check is three steps: python checks.py buy "fixed shop", then restart that shop, then python checks.py again "fixed shop".
+
+## What Crashpay found
+
+About PayPal's sandbox, from my own runs:
+
+- Sending the same payment twice without a PayPal-Request-Id created two separate orders and two charges. Sending the same request id twice returned the same order.
+- Capturing one order twice recorded one capture (one test).
+- A declined card still returns an order whose status is COMPLETED. The capture inside it says DECLINED. This is why Crashpay counts captures and does not trust the order status.
+
+About the hand-fixed shop, the one I wrote myself and thought was fixed. Crashpay found a bug in it six times, and I repaired each one:
+
+1. It relied on the PayPal-Request-Id header alone, and under simultaneous duplicate requests a second charge got through in some runs (7 of 10 defended in one test, 4 of 5 in another). I do not know why the header was not enough. I fixed it by giving each cart its own lock and returning the first reply on a repeat.
+2. It crashed with HTTP 500 when a request had an item but no cart id.
+3. It crashed with HTTP 500 when the item was a list.
+4. It crashed when the cart id was only spaces.
+5. It crashed on cart ids with a newline, a leading space, an emoji or a right-to-left character. The shop sends the cart id to PayPal as the request id header, and the requests library refuses those characters in a header. I now accept only cart ids of 1 to 64 letters, digits, dashes and underscores.
+6. It accepted a 2 MB request body. It now refuses bodies over 100 KB.
+
+About the AI patches:
+
+- Each patch passed the attacks that existed when it was written and failed a later one. v1 failed type confusion and 13 fuzz bodies, v2 and v3 accepted bad cart ids (4 bodies, then 2), and v4 passes the fuzz attack.
+- None of the four patches refuses a 2 MB body, and none returns the original order when a request is repeated. They keep carts in memory and send no request id to PayPal.
+- v4 charged a second time after a restart (1 check), because it forgets its carts and sends no request id.
+- A patch is only as good as the attacks that grade it. The restart check, the replay check and the size check each found a gap that the first seven attack classes did not. Adding an attack and grading a patch again takes minutes, and that is the useful part of this project.
+
+A note on PayPal's agent toolkit: in paypal-agent-toolkit 1.11.0 for Python, I found no PayPal-Request-Id in the headers it builds, and its pay_order tool takes only an order id. I only read the code. I did not run payments through the toolkit, so I do not know whether it causes a duplicate charge.
+
+## What is simulated, and what is not
+
+Real: every order, capture and amount comes from PayPal's sandbox API, and the shops call the sandbox for every payment. No payment result is invented or mocked.
+
+Not real:
+
+- It is the sandbox. The money is fake, and production timing and rules may differ.
+- The payer is a PayPal test card sent through the Orders API. I tried PayPal's saved-wallet API, which would let an agent pay on a buyer's behalf, but the permission was refused for my app (HTTP 403).
+- The shops are mine. Crashpay tests a checkout that accepts POST /pay with item, price and cart_id. Pointing it at another checkout would need an adapter that I did not write.
+
+## Limits
+
+- Small samples. Every cell in the main table is one run. The timing attacks were repeated 20 times on two shops, and the restart and replay checks were done once or twice.
+- Eight of the 16 classes are judged by the shop's HTTP replies and not by PayPal's records. Those send the same bodies every time, so repeating them tells you nothing new.
+- The hand-fixed shop's 16 of 16 is not independent: I repaired it against these same attacks.
+- The test cases are ones I thought of. The fuzz catalog missed bad cart ids until I added them, and four of my own tests (odd cart ids, oversized body, price fuzz and the legitimate-purchase control) needed corrections after I found mistakes in them.
+- Webhooks are not tested, and neither are forged or replayed notifications.
+- I did not test several server processes, a shared database or any production setup.
+- I told the model what had failed in rounds v2 to v4, so the fixer is a way to grade patches. It did not find the failures itself.
+- python -m crashpay.runner prints only the first nine classes. The page runs all 16.
+- One early run of the vulnerable shop's retry attack showed an error once. It did not come back in 10 later runs, and I did not find the cause.
+- Windows only, as far as I tested.
+
+## AI tools used
+
+- In the product: openai/gpt-oss-120b, called through Groq, writes the patches in fixer.py. AI plays no part in scoring an attack.
+- During development: I used Claude (Anthropic) as an assistant for writing code, debugging . I ran every command myself, read every patch before running it, and checked the results against PayPal's records and the shops' logs.
+
+## What I would do next
+
+- Test webhook replay and forged notifications.
+- Let you point Crashpay at a checkout it did not come with, through a settings file for the URL, the field names and the order id.
+- Give the shops a database, add the restart check to the page, and run another patch round against it.
+- Repeat every attack many more times.
+
+## Files
+
+- crashpay/paypal.py: the sandbox API calls
+- crashpay/attacks.py, attacks2.py and cases.py: the attacks and the fuzz bodies
+- crashpay/shop.py: the vulnerable and hand-fixed shops
+- crashpay/vuln_shop.py: the source the first patch was generated from
+- crashpay/patched_shop.py to patched_shop_v4.py: the model's patches, as generated
+- crashpay/fixer.py and llm.py: the patch generator
+- crashpay/web.py and static/index.html: the page
+- checks.py, measure.py, start_all.bat, run_shop.py: command line tools
+
+## License
+
+MIT. This is an independent project and is not affiliated with or endorsed by PayPal.
