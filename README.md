@@ -86,6 +86,73 @@ Restart the shops before a measured run. The hand-fixed and patched shops rememb
 
 Command line:
 
+## Results
+
+All numbers come from runs I did against the PayPal sandbox on 8 November 2026, on shops I restarted first. They are small samples: every cell below is one run unless it says otherwise.
+
+### All 16 attack classes, one run, final code
+
+P means the shop defended, FAIL means it did not.
+
+| Attack class | Vulnerable | Hand-fixed | AI v1 | AI v2 | AI v3 | AI v4 |
+|---|---|---|---|---|---|---|
+| Retry after a timeout | FAIL | P | P | P | P | P |
+| Double submit | FAIL | P | P | P | P | P |
+| Burst submit (8) | FAIL | P | P | P | P | P |
+| Price tampering | FAIL | P | P | P | P | P |
+| Price field fuzz (8 values) | FAIL | P | P | P | P | P |
+| Cart reused for another item | FAIL | P | P | P | P | P |
+| Cart reuse race (2 items) | FAIL | P | P | P | P | P |
+| 3 carts x 4 requests | FAIL | P | P | P | P | P |
+| Legitimate purchases (control) | P | P | P | P | P | P |
+| Refused request poisons cart | P | P | P | P | P | P |
+| Malformed input | FAIL | P | P | P | P | P |
+| Type confusion | FAIL | P | FAIL | P | P | P |
+| Fuzz (35 bad bodies) | FAIL | P | FAIL | FAIL | FAIL | P |
+| Odd cart ids | P | P | P | P | P | P |
+| Replay returns original order | FAIL | P | FAIL | FAIL | FAIL | FAIL |
+| Oversized body (2 MB) | FAIL | P | FAIL | FAIL | FAIL | FAIL |
+| Defended | 3 of 16 | 16 of 16 | 12 of 16 | 13 of 16 | 13 of 16 | 14 of 16 |
+
+What the vulnerable shop did: 2 charges for one cart on retry, 2 on double submit, 8 charges from 8 simultaneous requests, a $300 monitor sold for 0.01, all 8 wrong prices charged as sent (from 0.02 to 9999.00), and 12 charges from 12 requests on 3 carts. It passes three classes because they do not test what it lacks: the control, odd cart ids (it accepts them without crashing) and the poisoned-cart check.
+
+The hand-fixed shop's 16 of 16 is not independent evidence. I repaired it against these same attacks over several rounds, so it passes the tests it was repaired against.
+
+### Fuzz, in detail
+
+35 bad request bodies, one run each. A body "got through" if the shop crashed on it or accepted it. A good shop refuses every one with a 4xx reply.
+
+| Shop | Refused | Crashed | Accepted | Got through |
+|---|---|---|---|---|
+| Vulnerable | 18 | 17 | 0 | 17 |
+| Hand-fixed | 35 | 0 | 0 | 0 |
+| AI v1 | 22 | 7 | 6 | 13 |
+| AI v2 | 31 | 0 | 4 | 4 |
+| AI v3 | 33 | 0 | 2 | 2 |
+| AI v4 | 35 | 0 | 0 | 0 |
+
+Across the four AI patches, the bodies that got through fell from 13 to 4 to 2 to 0. The accepted ones were all cart id problems. From the 409 replies in a follow-up check, I read v1 as accepting an empty string, null, true, 0, 1.5 and a string of spaces, v2 as accepting the empty string, true, 0 and spaces, and v3 as accepting true and 0. That is my reading of the replies, and I did not read the shops' logs for it.
+
+### Timing attacks, repeated
+
+| Shop | Double submit | Burst (8) |
+|---|---|---|
+| Hand-fixed | 20/20 | 20/20 |
+| AI v4 | 20/20 | 20/20 |
+
+20/20 means exactly one charge in every run. The vulnerable shop failed the retry attack in all 10 runs I repeated (2 charges every time). An earlier version of the hand-fixed shop, which relied on the PayPal-Request-Id header alone, defended double submit 7 of 10 times in one test and 4 of 5 in another. I repaired it afterwards.
+
+The other attacks send the same bodies every time, so repeating them tells you nothing new.
+
+### Replay and restart checks
+
+| Check | Hand-fixed | AI v4 |
+|---|---|---|
+| A repeated request returns the original order | Yes | No: the repeat is refused and no order id comes back |
+| Charges for one cart across a restart | 1, the original order came back (2 checks) | 2, a second order was created (1 check) |
+
+The hand-fixed shop sends the cart id to PayPal as the request id, so after a restart PayPal recognised the repeat and returned the original order. v4 forgets its carts on restart and sends no request id, so nothing recognises the repeat. For the hand-fixed shop I inferred from the shop's log that the restarts took place. The restart check is not part of the page.
+
     python -m crashpay.runner
     python measure.py "fixed shop" "double submit" 20
     python checks.py replay "fixed shop"
