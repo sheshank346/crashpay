@@ -20,7 +20,7 @@ Most of the PayPal projects I came across were shopping or payment agents. I wan
 
 ## What it tests
 
-16 attack classes, 77 test cases per shop, against 6 shops: 96 results per run.
+16 attack classes, 77 test cases per shop, against 6 shops: 96 scored results per run (16 classes x 6 shops). A test case is one scenario or one request body.
 
 Checked against PayPal's order records (Crashpay fetches each order with GET /v2/checkout/orders/{id} and counts captures with status COMPLETED, or reads the amount):
 
@@ -43,7 +43,7 @@ Judged by the shop's HTTP replies (a 4xx refusal passes, a 5xx crash or a droppe
 - Malformed input: incomplete bodies and invalid JSON.
 - Type confusion: lists, objects and null where a string should be.
 - Fuzz: 35 bad request bodies, including non-objects, missing, empty and wrong-type fields, odd strings, very large values and blank cart ids. It also counts bodies the shop accepted.
-- Odd cart ids: eight cart ids with newlines, spaces, an emoji or a very long string. It passes if the shop does not crash. Accepting the id is allowed.
+- Odd cart ids: eight cart ids with newlines, spaces, an emoji or a very long string. It passes if the shop does not crash. In the final run the hand-fixed shop refused all eight with 400, and the vulnerable shop accepted them without crashing, so both pass: this class tests crash-resistance, not strictness.
 - Replay returns original order: a repeated request must get the first order's id back.
 - Oversized body: a 2 MB request must be refused.
 
@@ -80,17 +80,32 @@ Start everything with one command, which opens seven windows (six shops and the 
 
     start_all.bat
 
+If start_all.bat fails, start each program in its own terminal with the environment activated:
+
+    python -m crashpay.shop vulnerable
+    python -m crashpay.shop fixed
+    python run_shop.py patched_shop 5004
+    python run_shop.py patched_shop_v2 5005
+    python run_shop.py patched_shop_v3 5006
+    python run_shop.py patched_shop_v4 5007
+    python -m crashpay.web
+
 Open http://127.0.0.1:5000, choose how many runs per attack and click Run all attacks. One run of all 96 results takes about three minutes.
 
 Restart the shops before a measured run. The hand-fixed and patched shops remember cart ids while they are running, so a second run can hide a result that the first run showed.
 
 Command line:
 
+    python measure.py "fixed shop" "double submit" 20
+    python checks.py replay "fixed shop"
+
+measure.py runs one attack against one shop the number of times you give it. The restart check is three steps: python checks.py buy "fixed shop", then restart that shop, then python checks.py again "fixed shop".
+
 ## Results
 
-All numbers come from runs I did against the PayPal sandbox on 8 November 2026, on shops I restarted first. They are small samples: every cell below is one run unless it says otherwise.
+Final run, 8 November 2026, shops restarted first, one run per attack. Earlier runs are not mixed into the main table. They are small samples: every cell below is one run unless it says otherwise.
 
-### All 16 attack classes, one run, final code
+### All 16 attack classes
 
 P means the shop defended, FAIL means it did not.
 
@@ -153,12 +168,6 @@ The other attacks send the same bodies every time, so repeating them tells you n
 
 The hand-fixed shop sends the cart id to PayPal as the request id, so after a restart PayPal recognised the repeat and returned the original order. v4 forgets its carts on restart and sends no request id, so nothing recognises the repeat. For the hand-fixed shop I inferred from the shop's log that the restarts took place. The restart check is not part of the page.
 
-    python -m crashpay.runner
-    python measure.py "fixed shop" "double submit" 20
-    python checks.py replay "fixed shop"
-
-measure.py runs one attack against one shop the number of times you give it. The restart check is three steps: python checks.py buy "fixed shop", then restart that shop, then python checks.py again "fixed shop".
-
 ## What Crashpay found
 
 About PayPal's sandbox, from my own runs:
@@ -198,13 +207,12 @@ Not real:
 ## Limits
 
 - Small samples. Every cell in the main table is one run. The timing attacks were repeated 20 times on two shops, and the restart and replay checks were done once or twice.
-- Eight of the 16 classes are judged by the shop's HTTP replies and not by PayPal's records. Those send the same bodies every time, so repeating them tells you nothing new.
+- Six of the 16 classes are judged by the shop's HTTP replies and not by PayPal's records, and one more (poisoned cart) uses both. The reply-judged classes send the same bodies every time, so repeating them tells you nothing new.
 - The hand-fixed shop's 16 of 16 is not independent: I repaired it against these same attacks.
 - The test cases are ones I thought of. The fuzz catalog missed bad cart ids until I added them, and four of my own tests (odd cart ids, oversized body, price fuzz and the legitimate-purchase control) needed corrections after I found mistakes in them.
 - Webhooks are not tested, and neither are forged or replayed notifications.
 - I did not test several server processes, a shared database or any production setup.
 - I told the model what had failed in rounds v2 to v4, so the fixer is a way to grade patches. It did not find the failures itself.
-- python -m crashpay.runner prints only the first nine classes. The page runs all 16.
 - One early run of the vulnerable shop's retry attack showed an error once. It did not come back in 10 later runs, and I did not find the cause.
 - Windows only, as far as I tested.
 
