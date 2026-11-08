@@ -4,7 +4,7 @@ Crashpay attacks a checkout in the PayPal sandbox and then checks what happened.
 
 Built for the PayPal AI Hackathon 2026. Sandbox only: no real money moves, and the code only talks to api-m.sandbox.paypal.com.
 
-Demo video: ADD THE YOUTUBE LINK HERE
+Demo video:Demo video: https://youtu.be/REPLACE-WITH-YOUR-LINK
 
 ## Why I built it
 
@@ -20,7 +20,7 @@ Most of the PayPal projects I came across were shopping or payment agents. I wan
 
 ## What it tests
 
-16 attack classes, 77 test cases per shop, against 6 shops: 96 scored results per run (16 classes x 6 shops). A test case is one scenario or one request body.
+16 attack classes, 77 HTTP requests per shop per run, 96 scored cells per run (16 classes x 6 shops).
 
 Checked against PayPal's order records (Crashpay fetches each order with GET /v2/checkout/orders/{id} and counts captures with status COMPLETED, or reads the amount):
 
@@ -43,7 +43,7 @@ Judged by the shop's HTTP replies (a 4xx refusal passes, a 5xx crash or a droppe
 - Malformed input: incomplete bodies and invalid JSON.
 - Type confusion: lists, objects and null where a string should be.
 - Fuzz: 35 bad request bodies, including non-objects, missing, empty and wrong-type fields, odd strings, very large values and blank cart ids. It also counts bodies the shop accepted.
-- Odd cart ids: eight cart ids with newlines, spaces, an emoji or a very long string. It passes if the shop does not crash. In the final run the hand-fixed shop refused all eight with 400, and the vulnerable shop accepted them without crashing, so both pass: this class tests crash-resistance, not strictness.
+-- Odd cart ids: eight cart ids with newlines, spaces, an emoji or a very long string. It passes if the shop does not crash. Accepting the id is allowed. This class tests crash-resistance, not strictness. In the final run, the hand-fixed shop refused all 8 with 400, and the vulnerable shop accepted them without crashing, so both pass this class for different reasons.
 - Replay returns original order: a repeated request must get the first order's id back.
 - Oversized body: a 2 MB request must be refused.
 
@@ -103,7 +103,7 @@ measure.py runs one attack against one shop the number of times you give it. The
 
 ## Results
 
-Final run, 8 November 2026, shops restarted first, one run per attack. Earlier runs are not mixed into the main table. They are small samples: every cell below is one run unless it says otherwise.
+All numbers below are from one final run on 8 November 2026, shops restarted first, 1 run per attack, 197 seconds total. Earlier runs are not mixed in. They are small samples: every cell below is one run unless it says otherwise.
 
 ### All 16 attack classes
 
