@@ -42,6 +42,8 @@ def create_app(vulnerable):
         return jsonify(id=order_id, status=order_status), status
 
     handler = pay_vulnerable if vulnerable else pay_fixed
+    if not vulnerable:
+        app.config["MAX_CONTENT_LENGTH"] = 100 * 1024
     app.add_url_rule("/pay", view_func=handler, methods=["POST"])
     return app
 
