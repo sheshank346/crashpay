@@ -43,7 +43,7 @@ Judged by the shop's HTTP replies (a 4xx refusal passes, a 5xx crash or a droppe
 - Malformed input: incomplete bodies and invalid JSON.
 - Type confusion: lists, objects and null where a string should be.
 - Fuzz: 35 bad request bodies, including non-objects, missing, empty and wrong-type fields, odd strings, very large values and blank cart ids. It also counts bodies the shop accepted.
-  - Odd cart ids: eight cart ids with newlines, spaces, an emoji or a very long string. It passes if the shop does not crash. Accepting the id is allowed. This class tests crash-resistance, not strictness. In the final run, the hand-fixed shop refused all 8 with 400, and the vulnerable shop accepted them without crashing, so both pass this class for different reasons.
+- Odd cart ids: eight cart ids with newlines, spaces, an emoji or a very long string. It passes if the shop does not crash. Accepting the id is allowed. This class tests crash-resistance, not strictness. In the final run, the hand-fixed shop refused all 8 with 400, and the vulnerable shop accepted them without crashing, so both pass this class for different reasons.
 - Replay returns original order: a repeated request must get the first order's id back.
 - Oversized body: a 2 MB request must be refused.
 
