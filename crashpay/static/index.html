@@ -2,80 +2,220 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Crashpay</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #ddd; }
-  .pass { color: #0a7d32; font-weight: 600; }
-  .fail { color: #c62828; font-weight: 600; }
-  .mixed { color: #b26a00; font-weight: 600; }
-  .wait { color: #888; }
-  button, select { padding: 8px 16px; font-size: 1rem; }
-  button { cursor: pointer; }
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b1f24; --muted:#5b6570; --line:#e1e5ea;
+          --pass:#0a7d32; --passbg:#e3f5e9; --fail:#b3261e; --failbg:#fbe4e2;
+          --mix:#9a5b00; --mixbg:#fff0d6; --accent:#1f4fd8; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, "Segoe UI", sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { margin:0; font-size:2rem; }
+  h2 { font-size:1.1rem; margin:0 0 10px; }
+  .sub { color:var(--muted); margin:6px 0 20px; max-width:820px; line-height:1.45; }
+  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+  button, select { font-size:1rem; padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--card); }
+  button { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; font-weight:600; }
+  button:disabled { opacity:.55; cursor:default; }
+  .progress { height:8px; background:var(--line); border-radius:4px; overflow:hidden; flex:1; min-width:180px; }
+  .progress i { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+  #status { color:var(--muted); font-size:.95rem; min-width:190px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .card h3 { margin:0 0 6px; font-size:.95rem; color:var(--muted); font-weight:600; }
+  .card .score { font-size:1.9rem; font-weight:700; }
+  .card .score small { font-size:.9rem; color:var(--muted); font-weight:400; }
+  .meter { height:6px; background:var(--line); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .meter i { display:block; height:100%; width:0; background:var(--pass); transition:width .3s; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); }
+  th, td { padding:9px 10px; text-align:center; border-bottom:1px solid var(--line); font-size:.92rem; }
+  th:first-child, td:first-child { text-align:left; }
+  thead th { background:#eef1f5; font-weight:600; }
+  .src { font-size:.72rem; color:var(--muted); display:block; font-weight:400; }
+  .pill { display:inline-block; min-width:56px; padding:3px 8px; border-radius:999px; font-weight:700; font-size:.82rem; cursor:pointer; }
+  .pass { background:var(--passbg); color:var(--pass); }
+  .fail { background:var(--failbg); color:var(--fail); }
+  .mixed { background:var(--mixbg); color:var(--mix); }
+  .wait { color:var(--muted); font-weight:400; cursor:default; }
+  #detail { margin-top:14px; min-height:48px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:10px; color:var(--muted); word-break:break-word; }
+  #history { margin-top:26px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:none; }
+  .hrow { display:grid; grid-template-columns:160px 1fr 70px; gap:10px; align-items:center; margin:7px 0; font-size:.92rem; }
+  .hbar { height:14px; background:var(--line); border-radius:7px; overflow:hidden; }
+  .hbar i { display:block; height:100%; background:var(--fail); width:0; transition:width .4s; }
+  .note { color:var(--muted); font-size:.85rem; margin-top:22px; line-height:1.5; }
 </style>
 </head>
 <body>
+<main>
 <h1>Crashpay</h1>
-<p>Sandbox-only attacks against demo shops. Payment attacks are checked against the PayPal order records; input attacks are judged by the HTTP replies of the shop.</p>
-<label>Runs per attack
-  <select id="runs">
-    <option value="1">1</option>
-    <option value="5">5</option>
-    <option value="10">10</option>
-  </select>
-</label>
-<button id="run">Run all attacks</button>
-<p id="timer"></p>
+<p class="sub">Sandbox-only attacks against demo shops. Payment attacks are checked against the PayPal order records; input attacks are judged by the HTTP replies of the shop.</p>
+
+<div class="bar">
+  <label>Runs per attack
+    <select id="runs"><option value="1">1</option><option value="5">5</option><option value="10">10</option></select>
+  </label>
+  <button id="run">Run all attacks</button>
+  <div class="progress"><i id="prog"></i></div>
+  <span id="status">Ready</span>
+</div>
+
+<div class="cards" id="cards"></div>
 <table>
-  <thead><tr><th>Target</th><th>Attack</th><th>Passed</th><th>Detail</th></tr></thead>
+  <thead id="head"></thead>
   <tbody id="rows"></tbody>
 </table>
-<script>
-const rows = document.getElementById("rows");
-const button = document.getElementById("run");
-const timer = document.getElementById("timer");
-const runsBox = document.getElementById("runs");
+<div id="detail">Click a result to see its detail.</div>
 
-async function attack(c, runs) {
-  c.result.textContent = "running...";
+<div id="history">
+  <h2>Fuzz: bodies that got through (of 35)</h2>
+  <div id="hrows"></div>
+</div>
+
+<p class="note">Sandbox only. The payer is a PayPal test card and the shops are demo code written for this project. The hand-fixed shop was repaired against these same attacks, so its score is not independent evidence. Each result is one run unless Runs per attack is higher.</p>
+</main>
+<script>
+const rowsEl = document.getElementById("rows");
+const headEl = document.getElementById("head");
+const cardsEl = document.getElementById("cards");
+const detailEl = document.getElementById("detail");
+const statusEl = document.getElementById("status");
+const progEl = document.getElementById("prog");
+const button = document.getElementById("run");
+const runsBox = document.getElementById("runs");
+const historyEl = document.getElementById("history");
+const hrowsEl = document.getElementById("hrows");
+
+const REPLY_BASED = ["malformed input", "type confusion", "fuzz", "odd cart ids", "replay returns original order", "oversized body"];
+function source(name) {
+  if (name.startsWith("refused request")) return "PayPal records and replies";
+  return REPLY_BASED.some((k) => name.startsWith(k)) ? "HTTP replies" : "PayPal records";
+}
+
+let results = {};
+let plan = null;
+
+function setPill(pill, r) {
+  if (!r) { pill.textContent = "waiting"; pill.className = "pill wait"; return; }
+  if (r.error) { pill.textContent = "ERROR"; pill.className = "pill fail"; return; }
+  const all = r.passed === r.runs;
+  pill.textContent = r.runs === 1 ? (all ? "PASS" : "FAIL") : r.passed + "/" + r.runs;
+  pill.className = "pill " + (all ? "pass" : r.passed === 0 ? "fail" : "mixed");
+}
+
+function build() {
+  results = {};
+  cardsEl.innerHTML = "";
+  headEl.innerHTML = "";
+  rowsEl.innerHTML = "";
+  const total = plan.attacks.length;
+  const hr = headEl.insertRow();
+  hr.insertCell().outerHTML = "<th>Attack class</th>";
+  for (const t of plan.targets) {
+    const card = document.createElement("div");
+    card.className = "card";
+    const h = document.createElement("h3"); h.textContent = t;
+    const s = document.createElement("div"); s.className = "score"; s.id = "score-" + t;
+    s.innerHTML = "0 <small>of " + total + " defended</small>";
+    const m = document.createElement("div"); m.className = "meter";
+    const i = document.createElement("i"); i.id = "meter-" + t;
+    m.appendChild(i);
+    card.append(h, s, m);
+    cardsEl.appendChild(card);
+    const th = document.createElement("th"); th.textContent = t;
+    hr.appendChild(th);
+  }
+  for (const a of plan.attacks) {
+    const tr = rowsEl.insertRow();
+    const first = tr.insertCell();
+    first.textContent = a;
+    const sm = document.createElement("span"); sm.className = "src"; sm.textContent = source(a);
+    first.appendChild(sm);
+    for (const t of plan.targets) {
+      const pill = document.createElement("span");
+      pill.id = "cell-" + t + "|" + a;
+      setPill(pill, null);
+      pill.onclick = () => {
+        const r = results[t + "|" + a];
+        if (r) detailEl.textContent = t + " / " + a + ": " + r.detail;
+      };
+      tr.insertCell().appendChild(pill);
+    }
+  }
+}
+
+function updateScores() {
+  for (const t of plan.targets) {
+    const ok = plan.attacks.filter((a) => {
+      const r = results[t + "|" + a];
+      return r && !r.error && r.passed === r.runs;
+    }).length;
+    document.getElementById("score-" + t).innerHTML = ok + " <small>of " + plan.attacks.length + " defended</small>";
+    document.getElementById("meter-" + t).style.width = (100 * ok / plan.attacks.length) + "%";
+  }
+}
+
+function updateHistory() {
+  const fuzz = plan.attacks.find((a) => a.startsWith("fuzz"));
+  const rows = [];
+  for (const t of plan.targets) {
+    const r = results[t + "|" + fuzz];
+    const m = r && r.detail && r.detail.match(/(\d+) refused, (\d+) crashed, (\d+) accepted of (\d+)/);
+    if (m) rows.push([t, Number(m[2]) + Number(m[3]), Number(m[4])]);
+  }
+  if (!rows.length) return;
+  historyEl.style.display = "block";
+  hrowsEl.innerHTML = "";
+  for (const [t, got, of] of rows) {
+    const row = document.createElement("div"); row.className = "hrow";
+    const name = document.createElement("span"); name.textContent = t;
+    const bar = document.createElement("div"); bar.className = "hbar";
+    const fill = document.createElement("i"); fill.style.width = (100 * got / of) + "%";
+    bar.appendChild(fill);
+    const num = document.createElement("span"); num.textContent = got + " of " + of;
+    row.append(name, bar, num);
+    hrowsEl.appendChild(row);
+  }
+}
+
+async function attack(t, a, runs) {
+  const pill = document.getElementById("cell-" + t + "|" + a);
+  pill.textContent = "running..."; pill.className = "pill wait";
   try {
     const r = await fetch("/api/attack", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target: c.target, attack: c.attack, runs }),
+      body: JSON.stringify({ target: t, attack: a, runs }),
     });
     if (!r.ok) throw new Error("bad response");
-    const d = await r.json();
-    c.result.textContent = d.passed + "/" + d.runs;
-    c.result.className = d.passed === d.runs ? "pass" : d.passed === 0 ? "fail" : "mixed";
-    c.detail.textContent = d.detail;
+    results[t + "|" + a] = await r.json();
   } catch (e) {
-    c.result.textContent = "ERROR";
-    c.detail.textContent = "is the shop running?";
+    results[t + "|" + a] = { error: true, detail: "request failed; is the shop running?", passed: 0, runs };
   }
+  setPill(pill, results[t + "|" + a]);
 }
 
 async function run() {
   button.disabled = true;
   const runs = Number(runsBox.value);
   const start = Date.now();
-  const plan = await (await fetch("/api/plan")).json();
-  rows.innerHTML = "";
-  const cells = [];
-  for (const target of plan.targets) {
-    for (const attack of plan.attacks) {
-      const tr = rows.insertRow();
-      tr.insertCell().textContent = target;
-      tr.insertCell().textContent = attack;
-      const result = tr.insertCell();
-      result.textContent = "waiting";
-      result.className = "wait";
-      cells.push({ target, attack, result, detail: tr.insertCell() });
-    }
-  }
-  await Promise.all(cells.map((c) => attack(c, runs)));
-  timer.textContent = "Finished in " + Math.round((Date.now() - start) / 1000) + " seconds";
+  plan = await (await fetch("/api/plan")).json();
+  build();
+  historyEl.style.display = "none";
+  detailEl.textContent = "Click a result to see its detail.";
+  const jobs = [];
+  for (const t of plan.targets) for (const a of plan.attacks) jobs.push([t, a]);
+  let done = 0;
+  statusEl.textContent = "0 of " + jobs.length + " done";
+  await Promise.all(jobs.map(async ([t, a]) => {
+    await attack(t, a, runs);
+    done++;
+    progEl.style.width = (100 * done / jobs.length) + "%";
+    statusEl.textContent = done + " of " + jobs.length + " done";
+    updateScores();
+  }));
+  updateHistory();
+  statusEl.textContent = "Finished in " + Math.round((Date.now() - start) / 1000) + " seconds";
   button.disabled = false;
 }
 button.onclick = run;
