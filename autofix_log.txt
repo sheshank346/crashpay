@@ -1,0 +1,4 @@
+round 0: crashpay/vuln_shop.py, failures ['retry after a timeout', 'double submit', 'burst submit (8)', 'price tampering', 'malformed input', 'type confusion', 'fuzz (35 bad bodies)', 'replay returns original order', 'cart reused for another item', 'cart reuse race (2 items)', '3 carts x 4 requests', 'price field fuzz (8 values)', 'refused request poisons cart', 'oversized body (2 MB)']
+round 1: crashpay/auto_v1.py, failures ['type confusion', 'fuzz (35 bad bodies)', 'cart reused for another item', 'cart reuse race (2 items)', 'oversized body (2 MB)']
+round 2: crashpay/auto_v2.py, failures ['oversized body (2 MB)']
+round 3: crashpay/auto_v3.py, failures ['oversized body (2 MB)']

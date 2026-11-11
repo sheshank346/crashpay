@@ -1,0 +1,18 @@
+RULES = {
+    "retry after a timeout": "The same cart sent twice must produce exactly one charge.",
+    "double submit": "Two identical requests sent at the same moment must produce exactly one charge.",
+    "burst submit (8)": "Eight identical requests sent at the same moment must produce exactly one charge.",
+    "price tampering": "The price must come from the shop's own price list, never from the request.",
+    "malformed input": "Incomplete bodies and invalid JSON must get a 4xx reply and never crash.",
+    "type confusion": "Lists, objects and null where a string is expected must get a 4xx reply.",
+    "fuzz": "Every malformed body must get a 4xx reply. cart_id must be a non-empty string containing a non-whitespace character; reject every other type.",
+    "legit purchases (control)": "Six different valid carts must all be charged.",
+    "odd cart ids (valid item)": "Cart ids with newlines, spaces or emoji must not crash the shop.",
+    "replay returns original order": "A repeated request for the same cart must return the first order's id, not an error.",
+    "cart reused for another item": "One cart used for two different items must produce exactly one charge.",
+    "cart reuse race (2 items)": "Two different items for one cart sent at the same moment must produce exactly one charge.",
+    "3 carts x 4 requests": "Twelve requests across three carts must produce exactly three charges.",
+    "price field fuzz (8 values)": "Whatever price the request contains, the amount charged must be the catalog price.",
+    "refused request poisons cart": "A refused request must not stop the same cart from being bought afterwards.",
+    "oversized body (2 MB)": "A 2 MB request body must be refused with a 4xx reply.",
+}
