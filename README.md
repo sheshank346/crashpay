@@ -107,6 +107,8 @@ measure.py runs one attack against one shop the number of times you give it. The
 
 All numbers below are from one final run on 8 November 2026, shops restarted first, 1 run per attack, 197 seconds total. Earlier runs are not mixed in. They are small samples: every cell below is one run unless it says otherwise.
 
+A later run on 12 November gave 4, 15, 12, 11, 13 and 14 of 16 for the six shops. Four cells differed from the table above: the vulnerable shop passed the retry attack (one of the two requests probably failed, and the attack counts a single charge as defended), the hand-fixed shop and AI v2 hit an error on the price field fuzz class, and AI v2 failed the cart reuse class. I did not find the cause of the errors. The fuzz counts were the same in both runs.
+
 ### All 16 attack classes
 
 P means the shop defended, FAIL means it did not.
