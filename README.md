@@ -6,6 +6,8 @@ Built for the PayPal AI Hackathon 2026. Sandbox only: no real money moves, and t
 
 Demo video: https://youtu.be/REPLACE-WITH-YOUR-LINK
 
+Closed loop: attacks, then an AI patch, then I approve it, then the same attacks again. In one recorded run a vulnerable shop went from 2 of 16 to 15 of 16 attack classes defended in two rounds, and the one class it never fixed was the 2 MB request body.
+
 ## Why I built it
 
 Most of the PayPal projects I came across were shopping or payment agents. I wanted to test the payment code underneath instead. While trying the sandbox I found that sending the same payment twice without a PayPal-Request-Id creates two separate charges. That made me want a tool that measures this from PayPal's own records, so Crashpay does that, and then checks whether an AI-written fix really holds.
