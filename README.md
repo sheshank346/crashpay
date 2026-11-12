@@ -242,3 +242,30 @@ Not real:
 ## License
 
 MIT. This is an independent project and is not affiliated with or endorsed by PayPal.
+
+## The closed loop (autofix)
+
+crashpay/autofix.py runs the whole loop in one command:
+
+    python -m crashpay.autofix crashpay/vuln_shop.py
+
+Each round runs all 16 attack classes against a shop, builds a prompt from the failing attacks' own output plus a one-line rule per class (crashpay/rules.py), asks the model for a patched shop, refuses patches with imports outside a short allowed list, shows the patch for approval, starts it on a free port, runs the same attacks again, and stops when everything passes, when a round does not improve, or after four rounds. The model call retries up to four times if the network drops.
+
+I typed no failure descriptions for this loop. The prompts come from the attack results and the rules.
+
+One recorded run, from the vulnerable shop in crashpay/vuln_shop.py (autofix_log.txt, patches in crashpay/auto_v1.py to auto_v3.py):
+
+| Round | Defended | Failing classes |
+|---|---|---|
+| 0 (vulnerable shop) | 2 of 16 | 14 classes |
+| 1 | 11 of 16 | type confusion, fuzz, cart reused for another item, cart reuse race, oversized body |
+| 2 | 15 of 16 | oversized body |
+| 3 | 15 of 16 | oversized body, so the loop stopped |
+
+What this does not show:
+
+- It is not fully autonomous. I approved each patch before it ran. The --auto switch skips the approval, and I have not tried it.
+- The approval was a check of each patch's imports and bind address, not a review of every line of its logic. The import check is not a sandbox.
+- The loop is noisy. I ran it four times: it reached 15 of 16 twice, stopped at 11 once, and was cut short once by a network error. The patch files from the first runs were not kept, and this run is the one the repository holds.
+- The model never fixed the 2 MB oversized body in any run. A one-line request size limit fixed it in the hand-fixed shop.
+- The attack rules are one sentence each and I wrote them.
