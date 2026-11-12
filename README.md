@@ -4,7 +4,7 @@ Crashpay attacks a checkout in the PayPal sandbox and then checks what happened.
 
 Built for the PayPal AI Hackathon 2026. Sandbox only: no real money moves, and the code only talks to api-m.sandbox.paypal.com.
 
-Demo video: https://youtu.be/REPLACE-WITH-YOUR-LINK
+Demo video: https://youtu.be/wywT1qXjrtU
 
 Closed loop: attacks, then an AI patch, then I approve it, then the same attacks again. In one recorded run a vulnerable shop went from 2 of 16 to 15 of 16 attack classes defended in two rounds, and the one class it never fixed was the 2 MB request body.
 
